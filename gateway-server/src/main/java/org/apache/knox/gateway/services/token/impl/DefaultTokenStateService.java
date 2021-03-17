@@ -66,7 +66,7 @@ public class DefaultTokenStateService implements TokenStateService {
   private long tokenEvictionInterval;
 
   // Grace period (in seconds) after which an expired token should be evicted
-  private long tokenEvictionGracePeriod;
+  protected long tokenEvictionGracePeriod;
 
   // Knox token validation permissiveness
   protected boolean permissiveValidationEnabled;

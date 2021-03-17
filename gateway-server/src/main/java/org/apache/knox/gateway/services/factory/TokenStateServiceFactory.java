@@ -30,6 +30,7 @@ import org.apache.knox.gateway.services.ServiceLifecycleException;
 import org.apache.knox.gateway.services.ServiceType;
 import org.apache.knox.gateway.services.token.impl.AliasBasedTokenStateService;
 import org.apache.knox.gateway.services.token.impl.DefaultTokenStateService;
+import org.apache.knox.gateway.services.token.impl.JDBCTokenStateService;
 import org.apache.knox.gateway.services.token.impl.JournalBasedTokenStateService;
 import org.apache.knox.gateway.services.token.impl.ZookeeperTokenStateService;
 
@@ -49,6 +50,8 @@ public class TokenStateServiceFactory extends AbstractServiceFactory {
         service = new JournalBasedTokenStateService();
       } else if (matchesImplementation(implementation, ZookeeperTokenStateService.class)) {
         service = new ZookeeperTokenStateService(gatewayServices);
+      } else if (matchesImplementation(implementation, JDBCTokenStateService.class)) {
+        service = new JDBCTokenStateService();
       }
 
       logServiceUsage(isEmptyDefaultImplementation(implementation) ? AliasBasedTokenStateService.class.getName() : implementation, serviceType);

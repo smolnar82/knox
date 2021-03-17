@@ -27,15 +27,18 @@ import org.apache.knox.gateway.shell.jdbc.Database;
 
 public class DerbyDatabase implements Database {
 
-  public static final String DRIVER = "org.apache.derby.jdbc.EmbeddedDriver";
-  public static final String PROTOCOL = "jdbc:derby:";
+  public static final String EMBEDDED_DRIVER = "org.apache.derby.jdbc.EmbeddedDriver";
+  public static final String NETWORK_DRIVER = "org.apache.derby.jdbc.ClientDriver";
+  public static final String PROTOCOL_EMBEDDED = "jdbc:derby:";
+  public static final String PROTOCOL_NETWORK = "jdbc:derby://localhost:1527/";
   private static final String CREATE_ATTRIBUTE = ";create=true";
   private static final String SHUTDOWN_ATTRIBUTE = ";shutdown=true";
+  private static final String DEFAULT_SCHEMA_NAME = "APP";
 
   private final String dbUri;
 
   /**
-   * Constructor
+   * Creates an embedded Derby Database
    *
    * @param directory
    *          the directory where the database should be placed
@@ -43,8 +46,22 @@ public class DerbyDatabase implements Database {
    *           if the database engine can not be load for some reasons
    */
   public DerbyDatabase(String directory) throws DerbyDatabaseException {
-    this.dbUri = PROTOCOL + directory;
-    loadDriver();
+    this(directory, false);
+  }
+
+  /**
+   * Constructor
+   *
+   * @param directory
+   *          the directory where the database should be placed
+   * @param networkServer
+   *          whether this Derby Database acts as a Network Server
+   * @throws DerbyDatabaseException
+   *           if the database engine can not be load for some reasons
+   */
+  public DerbyDatabase(String directory, boolean networkServer) throws DerbyDatabaseException {
+    this.dbUri = (networkServer ? PROTOCOL_NETWORK : PROTOCOL_EMBEDDED) + directory;
+    loadDriver(networkServer);
   }
 
   @Override
@@ -87,14 +104,14 @@ public class DerbyDatabase implements Database {
 
   @Override
   public boolean hasTable(String tableName) throws SQLException {
-    return hasTable(null, tableName);
+    return hasTable(DEFAULT_SCHEMA_NAME, tableName);
   }
 
   @Override
   public boolean hasTable(String schemaName, String tableName) throws SQLException {
     boolean result = false;
     try (Connection connection = getConnection();
-        ResultSet tables = connection.getMetaData().getTables(connection.getCatalog(), schemaName, tableName, null)) {
+        ResultSet tables = connection.getMetaData().getTables(null, schemaName, tableName, null)) {
       result = tables.next();
     } catch (SQLException e) {
       log(MessageLevel.ERROR, "SQL error occured while checking table " + tableName + " in the database", e);
@@ -103,15 +120,16 @@ public class DerbyDatabase implements Database {
     return result;
   }
 
-  private void loadDriver() throws DerbyDatabaseException {
+  private void loadDriver(boolean networkServer) throws DerbyDatabaseException {
+    final String driverToLoad = networkServer ? NETWORK_DRIVER : EMBEDDED_DRIVER;
     try {
-      Class.forName(DRIVER).newInstance();
+      Class.forName(driverToLoad, false, getClass().getClassLoader()).newInstance();
     } catch (ClassNotFoundException e) {
-      throw new DerbyDatabaseException("Unable to load the JDBC driver " + DRIVER + ". Check your CLASSPATH.", e);
+      throw new DerbyDatabaseException("Unable to load the JDBC driver " + driverToLoad + ". Check your CLASSPATH.", e);
     } catch (InstantiationException e) {
-      throw new DerbyDatabaseException("Unable to instantiate the JDBC driver " + DRIVER, e);
+      throw new DerbyDatabaseException("Unable to instantiate the JDBC driver " + driverToLoad, e);
     } catch (IllegalAccessException e) {
-      throw new DerbyDatabaseException("Not allowed to access the JDBC driver " + DRIVER, e);
+      throw new DerbyDatabaseException("Not allowed to access the JDBC driver " + driverToLoad, e);
     }
   }
 
