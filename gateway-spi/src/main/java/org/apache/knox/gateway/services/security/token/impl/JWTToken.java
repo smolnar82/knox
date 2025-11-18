@@ -100,6 +100,11 @@ public class JWTToken implements JWT {
     builder.claim(KNOX_ID_CLAIM, String.valueOf(UUID.randomUUID()));
 
     builder.claim(MANAGED_TOKEN_CLAIM, String.valueOf(jwtAttributes.isManaged()));
+
+    if (jwtAttributes.getCustomAttributes() != null) {
+      jwtAttributes.getCustomAttributes().forEach(builder::claim);
+    }
+
     claims = builder.build();
 
     jwt = new SignedJWT(header, claims);

@@ -374,6 +374,15 @@ public abstract class DeploymentFactory {
       GatewayConfig gatewayConfig) {
     WebAppDescriptor wad = context.getWebAppDescriptor();
     String topoName = context.getTopology().getName();
+
+    final boolean hasKnoxCloak = services!= null && services.entrySet().stream().anyMatch( e -> e.getKey().equalsIgnoreCase("KNOXCLOAK") );
+    if (hasKnoxCloak) {
+      wad.createServlet().servletName("auth-success-redirect").servletClass("org.apache.knox.gateway.service.knoxcloak.AuthSuccessRedirectServlet");
+      wad.createServletMapping().servletName("auth-success-redirect").urlPattern("/authSuccess");
+      wad.createServlet().servletName("auth-consent-redirect").servletClass("org.apache.knox.gateway.service.knoxcloak.AuthConsentServlet");
+      wad.createServletMapping().servletName("auth-consent-redirect").urlPattern("/authConsent");
+    }
+
     if( applications == null ) {
       String servletName = topoName + SERVLET_NAME_SUFFIX;
       wad.createServlet().asyncSupported(gatewayConfig.isAsyncSupported()).servletName(servletName).servletClass(GatewayServlet.class.getName());

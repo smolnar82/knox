@@ -12,19 +12,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+FROM docker-private.infra.cloudera.com/cloudera_base/hardened/cloudera-openjdk:jdk-17-runtime-nofips
 
-FROM openjdk:8-jre-alpine3.8
 MAINTAINER Apache Knox <dev@knox.apache.org>
-
+USER root
 # Make sure required packages are available
-RUN apk --no-cache add bash procps ca-certificates krb5 && update-ca-certificates
+RUN apk upgrade --no-cache && \
+    apk add --no-cache openssl \
+       procps \
+       ca-certificates \
+       unzip \
+        nss && \
+    apk add --no-cache bash
 
 # Create an knox user
-RUN addgroup -S knox && adduser -S -G knox knox
+RUN groupadd --system -g 8000 knox && adduser --system -g knox knox -h /home/knox knox
 
 # Dependencies
 ARG RELEASE_FILE
-COPY ${RELEASE_FILE} /home/knox/
+ADD --chown=knox:knox ${RELEASE_FILE} /home/knox/
+RUN chmod 644 /home/knox/$(basename ${RELEASE_FILE})
 
 # Extract the Knox release tar.gz
 RUN cd /home/knox && unzip /home/knox/*.zip && rm -f /home/knox/*.zip && ln -nsf /home/knox/*/ /home/knox/knox
@@ -54,5 +61,4 @@ EXPOSE ${EXPOSE_PORT}
 
 # Switch off of the root user
 USER knox
-
 ENTRYPOINT ["./entrypoint.sh"]

@@ -114,7 +114,7 @@ public class TokenResource {
   protected static final String TOKEN_TYPE = "token_type";
   protected static final String ACCESS_TOKEN = "access_token";
   protected static final String TOKEN_ID = "token_id";
-  static final String PASSCODE = "passcode";
+  public static final String PASSCODE = "passcode";
   protected static final String MANAGED_TOKEN = "managed";
   private static final String TARGET_URL = "target_url";
   private static final String ENDPOINT_PUBLIC_CERT = "endpoint_public_cert";
@@ -841,7 +841,7 @@ public class TokenResource {
     String jku = getJku();
     try
     {
-      JWT token = getJWT(context.userName, expires, jku);
+      JWT token = getJWT(context, expires, jku);
       if (token != null) {
         ResponseMap result = buildResponseMap(token, expires);
         String jsonResponse = JsonUtils.renderAsJsonString(result.map);
@@ -931,10 +931,16 @@ public class TokenResource {
   protected static class UserContext {
     public final String userName;
     public final String createdBy;
+    private final Map<String, Object> userParams;
 
     public UserContext(String userName, String createdBy) {
+      this(userName, createdBy, Collections.emptyMap());
+    }
+
+    public UserContext(String userName, String createdBy, Map<String, Object> userParams) {
       this.userName = userName;
       this.createdBy = createdBy;
+      this.userParams = userParams;
     }
   }
 
@@ -1070,7 +1076,7 @@ public class TokenResource {
     }
   }
 
-  protected JWT getJWT(String userName, long expires, String jku) throws TokenServiceException {
+  private JWT getJWT(UserContext userContext, long expires, String jku) throws TokenServiceException {
     JWTokenAttributes jwtAttributes;
     JWT token;
     JWTokenAuthority ts = getGatewayServices().getService(ServiceType.TOKEN_SERVICE);
@@ -1078,7 +1084,7 @@ public class TokenResource {
     final JWTokenAttributesBuilder jwtAttributesBuilder = new JWTokenAttributesBuilder();
     jwtAttributesBuilder
         .setIssuer(tokenIssuer)
-        .setUserName(userName)
+        .setUserName(userContext.userName)
         .setAlgorithm(signatureAlgorithm)
         .setExpires(expires)
         .setManaged(managedToken)
@@ -1089,6 +1095,9 @@ public class TokenResource {
     }
     if (shouldIncludeGroups()) {
       jwtAttributesBuilder.setGroups(groups());
+    }
+    if (userContext.userParams != null) {
+      jwtAttributesBuilder.setCustomAttributes(userContext.userParams);
     }
 
     jwtAttributes = jwtAttributesBuilder.build();

@@ -20,6 +20,7 @@ package org.apache.knox.gateway.services.security.token;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class JWTokenAttributesBuilder {
@@ -37,6 +38,7 @@ public class JWTokenAttributesBuilder {
   private Set<String> groups;
   private String kid;
   private String issuer = JWTokenAttributes.DEFAULT_ISSUER;
+  private Map<String, Object> customAttributes;
 
   public JWTokenAttributesBuilder setUserName(String userName) {
     this.userName = userName;
@@ -107,8 +109,13 @@ public class JWTokenAttributesBuilder {
     return this;
   }
 
+  public JWTokenAttributesBuilder setCustomAttributes(Map<String, Object> customAttributes) {
+    this.customAttributes = customAttributes;
+    return this;
+  }
+
   public JWTokenAttributes build() {
     return new JWTokenAttributes(userName, (audiences == null ? new ArrayList<>() : audiences), algorithm, expires, signingKeystoreName, signingKeystoreAlias,
-        signingKeystorePassphrase, managed, jku, type, groups, kid, issuer);
+        signingKeystorePassphrase, managed, jku, type, groups, kid, issuer, customAttributes);
   }
 }
