@@ -152,6 +152,7 @@
         <module>knox-token-management-ui</module>
         <module>knox-webshell-ui</module>
         <module>knox-token-generation-ui</module>
+        <module>gateway-service-knoxcloak</module>
     </modules>
 
     <properties>
@@ -1406,6 +1407,11 @@
                 <version>${project.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.apache.knox</groupId>
+                <artifactId>gateway-service-knoxcloak</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.glassfish.jersey.containers</groupId>
                 <artifactId>jersey-container-servlet-core</artifactId>
                 <version>${jersey.version}</version>
@@ -1418,6 +1424,11 @@
             <dependency>
                 <groupId>org.glassfish.jersey.core</groupId>
                 <artifactId>jersey-server</artifactId>
+                <version>${jersey.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.glassfish.jersey.core</groupId>
+                <artifactId>jersey-common</artifactId>
                 <version>${jersey.version}</version>
             </dependency>
 

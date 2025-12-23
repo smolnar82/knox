@@ -78,7 +78,7 @@ public class UrlEncodedFormRequest extends HttpServletRequestWrapper {
 
   @Override
   public String getParameter(String name) {
-    if(JWTFederationFilter.GRANT_TYPE.equals(name) || JWTFederationFilter.CLIENT_ID.equals(name) || JWTFederationFilter.CLIENT_SECRET.equals(name)) {
+    if(JWTFederationFilter.GRANT_TYPE.equals(name) || JWTFederationFilter.CLIENT_ID.equals(name) || JWTFederationFilter.CLIENT_SECRET.equals(name) || "code".equals(name) || "redirect_uri".equals(name)) {
       return super.getParameter(name);
     }
     return queryParams.getValue(name, 0);

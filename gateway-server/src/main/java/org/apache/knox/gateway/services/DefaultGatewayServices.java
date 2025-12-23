@@ -82,6 +82,8 @@ public class DefaultGatewayServices extends AbstractGatewayServices {
     addService(ServiceType.CONCURRENT_SESSION_VERIFIER, gatewayServiceFactory.create(this, ServiceType.CONCURRENT_SESSION_VERIFIER, config, options));
 
     addService(ServiceType.GATEWAY_STATUS_SERVICE, gatewayServiceFactory.create(this, ServiceType.GATEWAY_STATUS_SERVICE, config, options));
+
+    addService(ServiceType.KNOXCLOAK_FEDERATED_IDENTITY_SERVICE, gatewayServiceFactory.create(this, ServiceType.KNOXCLOAK_FEDERATED_IDENTITY_SERVICE, config, options));
   }
 
   @Override

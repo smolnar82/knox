@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.ServletContext;
@@ -69,6 +70,10 @@ import org.apache.knox.gateway.util.SetCookieHeader;
 import org.apache.knox.gateway.util.Tokens;
 import org.apache.knox.gateway.util.Urls;
 import org.apache.knox.gateway.util.WhitelistUtils;
+import org.apache.knox.gateway.util.knoxcloak.AuthorizeRequestMetadata;
+import org.apache.knox.gateway.util.knoxcloak.AuthorizeRequestMetadataStore;
+import org.apache.knox.gateway.util.knoxcloak.FederatedOpConfiguration;
+import org.apache.knox.gateway.util.knoxcloak.KnoxcloakUtils;
 
 @Path( WebSSOResource.RESOURCE_PATH )
 public class WebSSOResource {
@@ -112,6 +117,7 @@ public class WebSSOResource {
   private String clusterName;
   private String tokenIssuer;
   private TokenStateService tokenStateService;
+  private final AuthorizeRequestMetadataStore authorizeRequestMetadataStore =  AuthorizeRequestMetadataStore.getInstance(120000L);
 
   private String sameSiteValue;
 
@@ -219,6 +225,17 @@ public class WebSSOResource {
         LOGGER.invalidTokenTTLEncountered(ttl);
       }
     }
+  }
+
+  @Path("/federated/op")
+  @GET
+  public Response federatedOpLogin() {
+    final String loginSessionId = request.getParameter("fedOpSid");
+    final String opName = request.getParameter("fedOpName");
+    final Map<String, FederatedOpConfiguration> federatedOpMap = authorizeRequestMetadataStore.getFederatedOpConfiguration(loginSessionId);
+    final FederatedOpConfiguration federatedOpConfiguration = federatedOpMap.get(opName);
+    final String federatedOpAuthRedirect = KnoxcloakUtils.buildFederatedOpAuthRedirect(federatedOpConfiguration, loginSessionId);
+    return Response.seeOther(java.net.URI.create(federatedOpAuthRedirect)).build();
   }
 
   @GET

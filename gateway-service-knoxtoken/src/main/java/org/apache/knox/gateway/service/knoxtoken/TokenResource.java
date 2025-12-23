@@ -114,7 +114,7 @@ public class TokenResource {
   protected static final String TOKEN_TYPE = "token_type";
   protected static final String ACCESS_TOKEN = "access_token";
   protected static final String TOKEN_ID = "token_id";
-  static final String PASSCODE = "passcode";
+  public static final String PASSCODE = "passcode";
   protected static final String MANAGED_TOKEN = "managed";
   private static final String TARGET_URL = "target_url";
   private static final String ENDPOINT_PUBLIC_CERT = "endpoint_public_cert";
@@ -144,6 +144,7 @@ public class TokenResource {
   private static final String LIFESPAN_INPUT_ENABLED_TEXT = "lifespanInputEnabled";
   static final String KNOX_TOKEN_USER_LIMIT_PER_USER = TOKEN_PARAM_PREFIX + "limit.per.user";
   static final String KNOX_TOKEN_USER_LIMIT_EXCEEDED_ACTION = TOKEN_PARAM_PREFIX + "user.limit.exceeded.action";
+  private static final String KNOX_TOKEN_HARDCODED_CLAIM_MAPPINGS = TOKEN_PARAM_PREFIX + "hardcoded.claim.mappings";
   private static final String METADATA_QUERY_PARAM_PREFIX = "md_";
   private static final long TOKEN_TTL_DEFAULT = 30000L;
   static final String TOKEN_API_PATH = "knoxtoken/api/v1";
@@ -185,6 +186,7 @@ public class TokenResource {
   private Optional<Long> maxTokenLifetime = Optional.empty();
 
   private int tokenLimitPerUser;
+  private Map<String, Object> hardCodedClaimMappings;
   private boolean includeGroupsInTokenAllowed;
   private String tokenIssuer;
 
@@ -356,7 +358,35 @@ public class TokenResource {
               .filter(s -> !s.isEmpty())
               .collect(Collectors.toSet());
     }
+
+    parseHardcodedClaimMappings(context.getInitParameter(KNOX_TOKEN_HARDCODED_CLAIM_MAPPINGS));
     setTokenStateServiceStatusMap();
+  }
+
+  private void parseHardcodedClaimMappings(String raw) {
+    hardCodedClaimMappings = new HashMap<>();
+
+    if (raw != null && !raw.isBlank()) {
+      Arrays.stream(raw.split(";"))
+              .map(String::trim)
+              .filter(s -> !s.isEmpty())
+              .map(entry -> entry.split("=", 2))
+              .filter(kv -> kv.length == 2)
+              .forEach(kv -> {
+                String key = kv[0].trim();
+                String value = kv[1].trim();
+
+                Object mappedValue =
+                        value.contains(",")
+                                ? Arrays.stream(value.split(","))
+                                .map(String::trim)
+                                .filter(v -> !v.isEmpty())
+                                .toList()
+                                : value;
+
+                hardCodedClaimMappings.put(key, mappedValue);
+              });
+    }
   }
 
   private String getTokenTTLAsText() {
@@ -836,16 +866,17 @@ public class TokenResource {
 
   protected TokenResponseContext getTokenResponse(UserContext context) {
     TokenResponseContext response = null;
+    long issueTime = System.currentTimeMillis();
     long expires = getExpiry();
     setupPublicCertPEM();
     String jku = getJku();
     try
     {
-      JWT token = getJWT(context.userName, expires, jku);
+      JWT token = getJWT(context, issueTime, expires, jku);
       if (token != null) {
         ResponseMap result = buildResponseMap(token, expires);
         String jsonResponse = JsonUtils.renderAsJsonString(result.map);
-        persistTokenDetails(result, expires, context.userName, context.createdBy);
+        persistTokenDetails(result, issueTime, expires, context.userName, context.createdBy);
 
         response = new TokenResponseContext(result, jsonResponse, Response.ok());
       } else {
@@ -931,10 +962,16 @@ public class TokenResource {
   protected static class UserContext {
     public final String userName;
     public final String createdBy;
+    private final Map<String, Object> userParams;
 
     public UserContext(String userName, String createdBy) {
+      this(userName, createdBy, Collections.emptyMap());
+    }
+
+    public UserContext(String userName, String createdBy, Map<String, Object> userParams) {
       this.userName = userName;
       this.createdBy = createdBy;
+      this.userParams = userParams;
     }
   }
 
@@ -1006,13 +1043,10 @@ public class TokenResource {
     return response;
   }
 
-  protected void persistTokenDetails(ResponseMap result, long expires, String userName, String createdBy) {
+  protected void persistTokenDetails(ResponseMap result, long issueTime, long expires, String userName, String createdBy) {
     // Optional token store service persistence
     if (tokenStateService != null) {
-      final long issueTime = System.currentTimeMillis();
-      tokenStateService.addToken(result.tokenId,
-                                 issueTime,
-              expires,
+      tokenStateService.addToken(result.tokenId, issueTime, expires,
                                  maxTokenLifetime.orElse(tokenStateService.getDefaultMaxLifetimeDuration()));
       final String comment = request.getParameter(COMMENT);
       final TokenMetadata tokenMetadata = new TokenMetadata(userName, StringUtils.isBlank(comment) ? null : comment);
@@ -1026,7 +1060,7 @@ public class TokenResource {
     }
   }
 
-  protected ResponseMap buildResponseMap(JWT token, long expires) {
+  protected ResponseMap buildResponseMap(JWT token, long expires) throws TokenServiceException {
     String accessToken = token.toString();
     String tokenId = TokenUtils.getTokenId(token);
     final boolean managedToken = tokenStateService != null;
@@ -1070,7 +1104,7 @@ public class TokenResource {
     }
   }
 
-  protected JWT getJWT(String userName, long expires, String jku) throws TokenServiceException {
+  private JWT getJWT(UserContext userContext, long issueTime, long expires, String jku) throws TokenServiceException {
     JWTokenAttributes jwtAttributes;
     JWT token;
     JWTokenAuthority ts = getGatewayServices().getService(ServiceType.TOKEN_SERVICE);
@@ -1078,8 +1112,9 @@ public class TokenResource {
     final JWTokenAttributesBuilder jwtAttributesBuilder = new JWTokenAttributesBuilder();
     jwtAttributesBuilder
         .setIssuer(tokenIssuer)
-        .setUserName(userName)
+        .setUserName(userContext.userName)
         .setAlgorithm(signatureAlgorithm)
+        .setIssueTime(issueTime)
         .setExpires(expires)
         .setManaged(managedToken)
         .setJku(jku)
@@ -1089,6 +1124,14 @@ public class TokenResource {
     }
     if (shouldIncludeGroups()) {
       jwtAttributesBuilder.setGroups(groups());
+    }
+
+    if (userContext.userParams != null) {
+      hardCodedClaimMappings.putAll(userContext.userParams);
+    }
+
+    if (!hardCodedClaimMappings.isEmpty()) {
+      jwtAttributesBuilder.setCustomAttributes(hardCodedClaimMappings);
     }
 
     jwtAttributes = jwtAttributesBuilder.build();
