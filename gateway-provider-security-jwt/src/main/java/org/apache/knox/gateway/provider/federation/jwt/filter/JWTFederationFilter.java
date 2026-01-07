@@ -23,6 +23,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.knox.gateway.i18n.messages.MessagesFactory;
 import org.apache.knox.gateway.provider.federation.jwt.JWTMessages;
 import org.apache.knox.gateway.security.PrimaryPrincipal;
+import org.apache.knox.gateway.services.security.token.TokenUtils;
 import org.apache.knox.gateway.services.security.token.UnknownTokenException;
 import org.apache.knox.gateway.services.security.token.impl.JWT;
 import org.apache.knox.gateway.services.security.token.impl.JWTToken;
@@ -62,6 +63,7 @@ public class JWTFederationFilter extends AbstractJWTFilter {
   public static final String JWT_UNAUTHENTICATED_PATHS_PARAM = "jwt.unauthenticated.path.list";
   public static final String GRANT_TYPE = "grant_type";
   public static final String CLIENT_CREDENTIALS = "client_credentials";
+  public static final String AUTH_CODE = "authorization_code";
   public static final String CLIENT_SECRET = "client_secret";
   public static final String CLIENT_ID = "client_id";
   public static final String MISMATCHING_CLIENT_ID_AND_CLIENT_SECRET = "Client credentials flow with mismatching client_id and client_secret";
@@ -225,6 +227,10 @@ public class JWTFederationFilter extends AbstractJWTFilter {
           JWT token = new JWTToken(tokenValue);
           if (validateToken((HttpServletRequest) request, (HttpServletResponse) response, chain, token)) {
             Subject subject = createSubjectFromToken(token);
+            request.setAttribute("X-Token-Id", TokenUtils.getTokenId(token));
+            if (token.getClaim("scope") != null) {
+              request.setAttribute("X-Token-Scope", token.getClaim("scope"));
+            }
             continueWithEstablishedSecurityContext(subject, (HttpServletRequest) request, (HttpServletResponse) response, chain);
           }
         } catch (ParseException | UnknownTokenException ex) {
@@ -247,6 +253,7 @@ public class JWTFederationFilter extends AbstractJWTFilter {
         if (validateToken((HttpServletRequest) request, (HttpServletResponse) response, chain, tokenId, passcode)) {
           try {
             Subject subject = createSubjectFromTokenIdentifier(tokenId);
+            request.setAttribute("X-Token-Id", tokenId);
             continueWithEstablishedSecurityContext(subject, (HttpServletRequest) request, (HttpServletResponse) response, chain);
           } catch (UnknownTokenException e) {
             ((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED);
@@ -339,7 +346,7 @@ public class JWTFederationFilter extends AbstractJWTFilter {
 
     private Pair<TokenType, String> getClientCredentialsFromRequestBody(ServletRequest request) {
         final String grantType = request.getParameter(GRANT_TYPE);
-        if (CLIENT_CREDENTIALS.equals(grantType)) {
+        if (CLIENT_CREDENTIALS.equals(grantType) || AUTH_CODE.equals(grantType)) {
           // this is indeed a client credentials flow client_id and
           // client_secret are expected now the client_id will be in
           // the token as the token_id so we will get that later

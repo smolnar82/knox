@@ -38,7 +38,8 @@ public enum ServiceType {
   TOPOLOGY_SERVICE("TopologyService"),
   CONCURRENT_SESSION_VERIFIER("ConcurrentSessionVerifier"),
   REMOTE_CONFIGURATION_MONITOR("RemoteConfigurationMonitor"),
-  GATEWAY_STATUS_SERVICE("GatewayStatusService");
+  GATEWAY_STATUS_SERVICE("GatewayStatusService"),
+  KNOXCLOAK_FEDERATED_IDENTITY_SERVICE("KnoxCloakFederatedIdentityService");
 
   private final String serviceTypeName;
   private final String shortName;

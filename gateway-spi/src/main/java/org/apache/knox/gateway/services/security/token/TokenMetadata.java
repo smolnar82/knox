@@ -39,6 +39,7 @@ public class TokenMetadata {
   public static final String CREATED_BY = "createdBy";
   public static final String LAST_USED_AT = "lastUsedAt";
   public static final String TYPE = "type";
+  public static final String ONE_TIME_ONLY = "OTO";
   private static final List<String> KNOWN_MD_NAMES = Arrays.asList(USER_NAME, COMMENT, ENABLED, PASSCODE, CREATED_BY, LAST_USED_AT, TYPE);
 
   private final Map<String, String> metadataMap = new HashMap<>();
@@ -69,7 +70,6 @@ public class TokenMetadata {
   }
 
   public TokenMetadata(Map<String, String> metadataMap) {
-    this.metadataMap.clear();
     this.metadataMap.putAll(metadataMap);
   }
 
@@ -151,6 +151,11 @@ public class TokenMetadata {
   @JsonIgnore
   public boolean isClientId() {
     return getType() == null ? false : TokenMetadataType.CLIENT_ID == TokenMetadataType.valueOf(getType());
+  }
+
+  @JsonIgnore
+  public boolean isAuthCode() {
+    return getType() == null ? false : TokenMetadataType.AUTH_CODE == TokenMetadataType.valueOf(getType());
   }
 
   public String getType() {

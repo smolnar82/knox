@@ -17,35 +17,6 @@
  */
 package org.apache.knox.gateway.service.knoxsso;
 
-import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
-import static javax.ws.rs.core.MediaType.APPLICATION_XML;
-import static org.apache.knox.gateway.services.GatewayServices.GATEWAY_CLUSTER_ATTRIBUTE;
-
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import javax.annotation.PostConstruct;
-import javax.servlet.ServletContext;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.knox.gateway.audit.log4j.audit.Log4jAuditor;
 import org.apache.knox.gateway.config.GatewayConfig;
@@ -69,6 +40,37 @@ import org.apache.knox.gateway.util.SetCookieHeader;
 import org.apache.knox.gateway.util.Tokens;
 import org.apache.knox.gateway.util.Urls;
 import org.apache.knox.gateway.util.WhitelistUtils;
+import org.apache.knox.gateway.util.knoxcloak.AuthorizeRequestMetadataStore;
+import org.apache.knox.gateway.util.knoxcloak.FederatedOpConfiguration;
+import org.apache.knox.gateway.util.knoxcloak.KnoxcloakUtils;
+
+import javax.annotation.PostConstruct;
+import javax.servlet.ServletContext;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.Context;
+import javax.ws.rs.core.Response;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.security.Principal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
+import static javax.ws.rs.core.MediaType.APPLICATION_XML;
+import static org.apache.knox.gateway.services.GatewayServices.GATEWAY_CLUSTER_ATTRIBUTE;
 
 @Path( WebSSOResource.RESOURCE_PATH )
 public class WebSSOResource {
@@ -105,13 +107,14 @@ public class WebSSOResource {
   private long tokenTTL = TOKEN_TTL_DEFAULT;
   private String whitelist;
   private String domainSuffix;
-  private List<String> targetAudiences = new ArrayList<>();
+  private final List<String> targetAudiences = new ArrayList<>();
   private boolean enableSession;
   private String signatureAlgorithm;
   private List<String> ssoExpectedparams = new ArrayList<>();
   private String clusterName;
   private String tokenIssuer;
   private TokenStateService tokenStateService;
+  private final AuthorizeRequestMetadataStore authorizeRequestMetadataStore =  AuthorizeRequestMetadataStore.getInstance(120000L);
 
   private String sameSiteValue;
 
@@ -219,6 +222,17 @@ public class WebSSOResource {
         LOGGER.invalidTokenTTLEncountered(ttl);
       }
     }
+  }
+
+  @Path("/federated/op")
+  @GET
+  public Response federatedOpLogin() {
+    final String loginSessionId = request.getParameter("fedOpSid");
+    final String opName = request.getParameter("fedOpName");
+    final Map<String, FederatedOpConfiguration> federatedOpMap = authorizeRequestMetadataStore.getFederatedOpConfiguration(loginSessionId);
+    final FederatedOpConfiguration federatedOpConfiguration = federatedOpMap.get(opName);
+    final String federatedOpAuthRedirect = KnoxcloakUtils.buildFederatedOpAuthRedirect(federatedOpConfiguration, loginSessionId);
+    return Response.seeOther(java.net.URI.create(federatedOpAuthRedirect)).build();
   }
 
   @GET

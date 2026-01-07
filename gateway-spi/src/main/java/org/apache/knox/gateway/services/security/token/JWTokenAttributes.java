@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class JWTokenAttributes {
@@ -28,6 +29,7 @@ public class JWTokenAttributes {
   private final String userName;
   private final List<String> audiences;
   private final String algorithm;
+  private final long issueTime;
   private final long expires;
   private final String signingKeystoreName;
   private final String signingKeystoreAlias;
@@ -38,12 +40,14 @@ public class JWTokenAttributes {
   private final Set<String> groups;
   private final String issuer;
   private String kid;
+  private Map<String, Object> customAttributes;
 
-  JWTokenAttributes(String userName, List<String> audiences, String algorithm, long expires, String signingKeystoreName, String signingKeystoreAlias,
-      char[] signingKeystorePassphrase, boolean managed, String jku, String type, Set<String> groups, String kid, String issuer) {
+  JWTokenAttributes(String userName, List<String> audiences, String algorithm, long issueTime, long expires, String signingKeystoreName, String signingKeystoreAlias,
+      char[] signingKeystorePassphrase, boolean managed, String jku, String type, Set<String> groups, String kid, String issuer, Map<String, Object> customAttributes) {
     this.userName = userName;
     this.audiences = audiences;
     this.algorithm = algorithm;
+    this.issueTime = issueTime;
     this.expires = expires;
     this.signingKeystoreName = signingKeystoreName;
     this.signingKeystoreAlias = signingKeystoreAlias;
@@ -54,6 +58,7 @@ public class JWTokenAttributes {
     this.groups = groups;
     this.kid = kid;
     this.issuer = issuer;
+    this.customAttributes = customAttributes;
   }
 
   public String getUserName() {
@@ -66,6 +71,10 @@ public class JWTokenAttributes {
 
   public String getAlgorithm() {
     return algorithm;
+  }
+
+  public long getIssueTime() {
+    return issueTime;
   }
 
   public long getExpires() {
@@ -122,5 +131,9 @@ public class JWTokenAttributes {
 
   public String getIssuer() {
     return issuer;
+  }
+
+  public Map<String, Object> getCustomAttributes() {
+    return customAttributes;
   }
 }
